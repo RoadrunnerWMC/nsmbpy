@@ -1,0 +1,10 @@
+
+TODO
+
+- nsmbpy.nsmbeFormats: NML, NMT, NMB (just unpacks into byteses, for you to use as you wish)
+- nsmbpy.level (both course and bgdat)
+- nsmbpy.tileset (unt, unthd, chk, object rendering)
+- nsmbpy.enpg (just lists for palette and pixels)
+- Docs
+- Readme
+- PyPI
