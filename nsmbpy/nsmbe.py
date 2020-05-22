@@ -30,7 +30,7 @@ NMB_MAGIC = b'\x19NSMBe Exported Background'
 NMP_MAGIC = b'\x15NSMBe4 Exported Patch'
 
 
-def _cSharpRead7BitEncodedInt(bio):
+def _c_sharp_read_7_bit_encoded_int(bio):
     # https://referencesource.microsoft.com/#mscorlib/system/io/binaryreader.cs,582
     acc = shift = 0
     while True:
@@ -51,7 +51,7 @@ def _cSharpRead7BitEncodedInt(bio):
     return acc
 
 
-def _cSharpWrite7BitEncodedInt(bio, value):
+def _c_sharp_write_7_bit_encoded_int(bio, value):
     # http://referencesource.microsoft.com/#mscorlib/system/io/binarywriter.cs,2daa1d14ff1877bd
     value &= 0xFFFFFFFF
     while value >= 0x80:
@@ -60,7 +60,7 @@ def _cSharpWrite7BitEncodedInt(bio, value):
     bio.write(bytes([value]))
 
 
-def loadNML(data):
+def load_nml(data):
     bio = io.BytesIO(data)
 
     # Magic
@@ -74,34 +74,38 @@ def loadNML(data):
         raise ValueError(f'Unsupported NML version: {version}')
 
     # File IDs
-    levelFileID, objectsFileID = struct.unpack('<HH', bio.read(4))
+    level_file_id, objects_file_id = struct.unpack('<HH', bio.read(4))
 
     # File datas
-    levelFile = bio.read(struct.unpack('<I', bio.read(4))[0])
-    objectsFile = bio.read(struct.unpack('<I', bio.read(4))[0])
+    level_file = bio.read(struct.unpack('<I', bio.read(4))[0])
+    objects_file = bio.read(struct.unpack('<I', bio.read(4))[0])
 
-    return version, (levelFileID, objectsFileID, levelFile, objectsFile)
+    return version, (level_file_id, objects_file_id, level_file, objects_file)
+
+loadNML = load_nml  # Deprecated alias for backwards-compatibility
 
 
-def saveNML(version, otherArgs):
+def save_nml(version, other_args):
     if version != 1:
         raise ValueError('nsmbpy can only save NML version 1!')
 
-    levelFileID, objectsFileID, levelFile, objectsFile = otherArgs
+    level_file_id, objects_file_id, level_file, objects_file = other_args
 
     bio = io.BytesIO()
     bio.write(NML_MAGIC)
 
-    bio.write(struct.pack('<3H', version, levelFileID, objectsFileID))
-    bio.write(struct.pack('<I', len(levelFile)))
-    bio.write(levelFile)
-    bio.write(struct.pack('<I', len(objectsFile)))
-    bio.write(objectsFile)
+    bio.write(struct.pack('<3H', version, level_file_id, objects_file_id))
+    bio.write(struct.pack('<I', len(level_file)))
+    bio.write(level_file)
+    bio.write(struct.pack('<I', len(objects_file)))
+    bio.write(objects_file)
 
     return bio.getvalue()
 
+saveNML = save_nml  # Deprecated alias for backwards-compatibility
 
-def loadNMT(data, *, decompress=True):
+
+def load_nmt(data, *, decompress=True):
     bio = io.BytesIO(data)
 
     magic = bio.read(len(NMT_MAGIC))
@@ -112,10 +116,10 @@ def loadNMT(data, *, decompress=True):
     ncg = bio.read(struct.unpack('<I', bio.read(4))[0])
     pnl = bio.read(struct.unpack('<I', bio.read(4))[0])
     unt = bio.read(struct.unpack('<I', bio.read(4))[0])
-    untHd = bio.read(struct.unpack('<I', bio.read(4))[0])
-    chkLenData = bio.read(4)
-    if chkLenData:
-        chk = bio.read(struct.unpack('<I', chkLenData)[0])
+    unt_hd = bio.read(struct.unpack('<I', bio.read(4))[0])
+    chk_len_data = bio.read(4)
+    if chk_len_data:
+        chk = bio.read(struct.unpack('<I', chk_len_data)[0])
     else:
         chk = None
 
@@ -123,10 +127,12 @@ def loadNMT(data, *, decompress=True):
         ncl = ndspy.lz10.decompress(ncl)
         ncg = ndspy.lz10.decompress(ncg)
 
-    return ncl, ncg, pnl, unt, untHd, chk
+    return ncl, ncg, pnl, unt, unt_hd, chk
+
+loadNMT = load_nmt  # Deprecated alias for backwards-compatibility
 
 
-def saveNMT(ncl, ncg, pnl, unt, untHd, chk, *, compress=True):
+def save_nmt(ncl, ncg, pnl, unt, unt_hd, chk, *, compress=True):
     if compress:
         ncl = ndspy.lz10.compress(ncl)
         ncg = ndspy.lz10.compress(ncg)
@@ -142,16 +148,18 @@ def saveNMT(ncl, ncg, pnl, unt, untHd, chk, *, compress=True):
     bio.write(pnl)
     bio.write(struct.pack('<I', len(unt)))
     bio.write(unt)
-    bio.write(struct.pack('<I', len(untHd)))
-    bio.write(untHd)
+    bio.write(struct.pack('<I', len(unt_hd)))
+    bio.write(unt_hd)
     if chk is not None:
         bio.write(struct.pack('<I', len(chk)))
         bio.write(chk)
 
     return bio.getvalue()
 
+saveNMT = save_nmt  # Deprecated alias for backwards-compatibility
 
-def loadNMB(data, *, decompress=True):
+
+def load_nmb(data, *, decompress=True):
     bio = io.BytesIO(data)
 
     magic = bio.read(len(NMB_MAGIC))
@@ -169,8 +177,10 @@ def loadNMB(data, *, decompress=True):
 
     return ncg, ncl, nsc
 
+loadNMB = load_nmb  # Deprecated alias for backwards-compatibility
 
-def saveNMB(ncg, ncl, nsc, *, compress=True):
+
+def save_nmb(ncg, ncl, nsc, *, compress=True):
     if compress:
         ncl = ndspy.lz10.compress(ncl)
         ncg = ndspy.lz10.compress(ncg)
@@ -188,8 +198,10 @@ def saveNMB(ncg, ncl, nsc, *, compress=True):
 
     return bio.getvalue()
 
+saveNMB = save_nmb  # Deprecated alias for backwards-compatibility
 
-def loadNMP(data):
+
+def load_nmp(data):
     bio = io.BytesIO(data)
 
     magic = bio.read(len(NMP_MAGIC))
@@ -208,31 +220,33 @@ def loadNMP(data):
         # NSMBe uses a BinaryWriter without specifying the encoding;
         # according to C# docs, the default encoding is then UTF-8.
 
-        filenameLen = _cSharpRead7BitEncodedInt(bio)
+        filenameLen = _c_sharp_read_7_bit_encoded_int(bio)
         filename = bio.read(filenameLen).decode('utf-8')
-        fileID, = struct.unpack('<H', bio.read(2))
+        file_id, = struct.unpack('<H', bio.read(2))
         file = bio.read(struct.unpack('<I', bio.read(4))[0])
 
-        files.append((filename, fileID, file))
+        files.append((filename, file_id, file))
 
     return files
 
+loadNMP = load_nmp  # Deprecated alias for backwards-compatibility
 
-def saveNMP(files):
+
+def save_nmp(files):
     bio = io.BytesIO()
     bio.write(NMP_MAGIC)
 
-    for filename, fileID, file in files:
+    for filename, file_id, file in files:
         bio.write(b'\1')
 
         # NSMBe uses a BinaryWriter without specifying the encoding;
         # according to C# docs, the default encoding is then UTF-8.
 
-        filenameEnc = filename.encode('utf-8')
-        _cSharpWrite7BitEncodedInt(bio, len(filenameEnc))
-        bio.write(filenameEnc)
+        filename_enc = filename.encode('utf-8')
+        _c_sharp_write_7_bit_encoded_int(bio, len(filename_enc))
+        bio.write(filename_enc)
 
-        bio.write(struct.pack('<H', fileID))
+        bio.write(struct.pack('<H', file_id))
 
         bio.write(struct.pack('<I', len(file)))
         bio.write(file)
@@ -240,3 +254,5 @@ def saveNMP(files):
     bio.write(b'\0')
 
     return bio.getvalue()
+
+saveNMP = save_nmp  # Deprecated alias for backwards-compatibility
