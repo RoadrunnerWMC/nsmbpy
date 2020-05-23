@@ -53,3 +53,51 @@ class Game(enum.Enum):
             self.NEW_SUPER_LUIGI_U: '>',
             self.NEW_SUPER_MARIO_BROS_U_DELUXE: '<',
         }[self]
+
+
+    def is_wii_u(self):
+        """
+        Returns True for NSMBU and NSLU.
+        """
+        return self in [self.NEW_SUPER_MARIO_BROS_U, self.NEW_SUPER_LUIGI_U]
+
+    def is_like_nsmbu(self):
+        """
+        Returns True for NSMBU, NSLU, and NSMBUDX.
+        """
+        return self in [self.NEW_SUPER_MARIO_BROS_U, self.NEW_SUPER_LUIGI_U, self.NEW_SUPER_MARIO_BROS_U_DELUXE]
+
+
+# I would like these to be class-level @properties, but you can't do
+# that without metaclasses, and metaclasses clash with subclassing Enum,
+# so... this is how we're doing it.
+Game.all = set(m for m in Game)
+Game.all_wii_u = set(m for m in Game if m.is_wii_u())
+Game.all_like_nsmbu = set(m for m in Game if m.is_like_nsmbu())
+
+
+class VariesPerGame:
+    """
+    A class that can be used to wrap a property that varies from game to game.
+    """
+    def __init__(self, default=None, *, nsmb=None, nsmbw=None, nsmb2=None, nsmbu=None, nslu=None, nsmbudx=None,
+            wiiu=None, like_nsmbu=None):
+        self.default = default
+        self.per_game = {}
+        if nsmb    is not None: self.per_game[Game.NEW_SUPER_MARIO_BROS] = nsmb
+        if nsmbw   is not None: self.per_game[Game.NEW_SUPER_MARIO_BROS_WII] = nsmbw
+        if nsmb2   is not None: self.per_game[Game.NEW_SUPER_MARIO_BROS_2] = nsmb2
+        if nsmbu   is not None: self.per_game[Game.NEW_SUPER_MARIO_BROS_U] = nsmbu
+        if nslu    is not None: self.per_game[Game.NEW_SUPER_LUIGI_U] = nslu
+        if nsmbudx is not None: self.per_game[Game.NEW_SUPER_MARIO_BROS_U_DELUXE] = nsmbudx
+
+        # Convenience arguments that set common groups of games at once
+        if wiiu is not None:
+            for m in Game.all_wii_u:
+                self.per_game[m] = wiiu
+        if like_nsmbu is not None:
+            for m in Game.all_like_nsmbu:
+                self.per_game[m] = like_nsmbu
+
+    def get(self, game):
+        return self.per_game.get(game, self.default)
