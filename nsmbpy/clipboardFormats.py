@@ -156,6 +156,10 @@ from . import level
 #         (ignoring NSMBUDX for now)
 
 
+_MAX_SPRITE_NSMBE = 325
+_MAX_SPRITE_REGGIE = 482
+
+
 def _resize_bytes(b, size):
     """
     Make b match the required size, by either padding it with zeros or
@@ -334,20 +338,35 @@ def load_nsmbeclip(s: str):
     return objects, sprites, entrances, zones_and_bounds, locations, path_nodes
 
 
-def save_nsmbeclip(objects, sprites, entrances, zones_and_bounds, locations, path_nodes) -> str:
+def save_nsmbeclip(objects, sprites, entrances, zones_and_bounds, locations, path_nodes, *, allow_unsafe=False, unsafe_list=None) -> str:
     """
     Save items back to a NSMBeClip.
+
+    If allow_unsafe is True (default False), sanity checks will be
+    skipped, which might result in a clip that crashes the editor when
+    pasted. If allow_unsafe is False, you can provide a list in the
+    unsafe_list parameter, which will be populated with all items that
+    were omitted from the clip for safety reasons.
     """
+    if unsafe_list is None: unsafe_list = []
+
     clip = []
 
     for layer_num, layer in objects.items():
-        if layer_num != 1: continue
         for o in layer:
-            if o.tileset_id > 2: continue  # no Pa3 in NSMBDS
+            if not allow_unsafe and (layer_num != 1 or o.tileset_id > 2):
+                # NSMBe cancels the entire paste if an object is invalid
+                unsafe_list.append(o)
+                continue
+
             clip.append(f'OBJ:{o.x}:{o.y}:{o.width}:{o.height}:{o.tileset_id}:{o.type}')
 
     for s in sprites:
-        if s.type > 325: continue  # crashes NSMBe if too large
+        if not allow_unsafe and s.type > _MAX_SPRITE_NSMBE:
+            # Crashes NSMBe
+            unsafe_list.append(s)
+            continue
+
         sdata = bytes(_resize_bytes(s.data_1, 6)[idx] for idx in [1, 0, 5, 4, 3, 2]).hex().upper()
         clip.append(f'SPR:{s.x}:{s.y}:{s.type}:{sdata}')
 
@@ -407,18 +426,31 @@ def load_reggieclip(s: str):
     return objects, sprites
 
 
-def save_reggieclip(objects, sprites) -> str:
+def save_reggieclip(objects, sprites, *, allow_unsafe=False, unsafe_list=None) -> str:
     """
     Save items back to a ReggieClip.
+
+    If allow_unsafe is True (default False), sanity checks will be
+    skipped, which might result in a clip that crashes the editor when
+    pasted. If allow_unsafe is False, you can provide a list in the
+    unsafe_list parameter, which will be populated with all items that
+    were omitted from the clip for safety reasons.
     """
+    if unsafe_list is None: unsafe_list = []
+
     clip = ['ReggieClip']
 
     for layer_num, layer in objects.items():
-        if layer_num not in {0, 1, 2}: continue
         for o in layer:
+            # No need to verify the layer number -- Reggie handles it fine
             clip.append(f'0:{o.tileset_id}:{o.type}:{layer_num}:{o.x}:{o.y}:{o.width}:{o.height}')
 
     for s in sprites:
+        if not allow_unsafe and s.type > _MAX_SPRITE_REGGIE:
+            # Crashes some versions of Reggie
+            unsafe_list.append(s)
+            continue
+
         sdata = ':'.join(str(b) for b in _resize_bytes(s.data_1, 6))
         clip.append(f'1:{s.type}:{s.x}:{s.y}:{sdata}:{s.layer}')
 
@@ -653,21 +685,27 @@ def load_coinkillerclip(s: str):
     return (width, height), objects, sprites, entrances, zones, locations, paths, progress_paths
 
 
-def save_coinkillerclip_raw(size, objects, sprites, entrances, zones, locations, paths, progress_paths) -> str:
+def save_coinkillerclip_raw(size, objects, sprites, entrances, zones, locations, paths, progress_paths, *, allow_unsafe=False, unsafe_list=None) -> str:
     """
     Save items to a CoinKillerClip.
     Positions and sizes are not scaled or transposed, and just left as-is.
     """
+    if unsafe_list is None: unsafe_list = []
+
     clip = ['CoinKillerClip', f'{size[0]}:{size[1]}']
 
     for layer_num, layer in objects.items():
-        # NSMB2 only supports layers 1 and 2
-        if layer_num not in {1, 2}: continue
-
         for o in layer:
+            if not allow_unsafe and layer_num not in {1, 2}:
+                # CK crashes if the layer number is OOB
+                unsafe_list.append(o)
+                continue
+
             clip.append(f'0:{(o.tileset_id << 12) | o.type}:{layer_num - 1}:{o.x}:{o.y}:{o.width}:{o.height}')
 
     for s in sprites:
+        # No need to verify that the sprite ID is in bounds -- CK handles it fine
+
         clip_parts = [f'1:{s.type}:{s.x}:{s.y}:{s.layer}']
 
         # Don't forget to account for endian flipping!
@@ -784,11 +822,17 @@ def calculate_size_for_coinkillerclip(objects, sprites, entrances, zones, locati
     return max_x - min_x, max_y - min_y
 
 
-def save_coinkillerclip(size, objects, sprites, entrances, zones, locations, paths, progress_paths) -> str:
+def save_coinkillerclip(size, objects, sprites, entrances, zones, locations, paths, progress_paths, *, allow_unsafe=False, unsafe_list=None) -> str:
     """
     Save items to a CoinKillerClip.
     You can set size to None, in which case it will be auto-calculated
     with calculate_size_for_coinkillerclip().
+
+    If allow_unsafe is True (default False), sanity checks will be
+    skipped, which might result in a clip that crashes the editor when
+    pasted. If allow_unsafe is False, you can provide a list in the
+    unsafe_list parameter, which will be populated with all items that
+    were omitted from the clip for safety reasons.
     """
     # This is a little tricky, because we want to change the x/y/w/h
     # attributes before running save_coinkillerclip_raw(), and then
@@ -867,7 +911,8 @@ def save_coinkillerclip(size, objects, sprites, entrances, zones, locations, pat
             node.y = conv_16_to_20(node.y - origin_y)
 
     try:
-        s = save_coinkillerclip_raw((width, height), objects, sprites, entrances, zones, locations, paths, progress_paths)
+        s = save_coinkillerclip_raw(
+            (width, height), objects, sprites, entrances, zones, locations, paths, progress_paths, allow_unsafe=allow_unsafe, unsafe_list=unsafe_list)
 
     finally:
         # Restore all modified attributes back to their original values
@@ -946,19 +991,27 @@ def load_miyamotoclip(s: str):
     return objects, sprites
 
 
-def save_miyamotoclip(objects, sprites) -> str:
+def save_miyamotoclip(objects, sprites, *, allow_unsafe=False, unsafe_list=None) -> str:
     """
     Save items back to a MiyamotoClip.
+
+    If allow_unsafe is True (default False), sanity checks will be
+    skipped, which might result in a clip that crashes the editor when
+    pasted. If allow_unsafe is False, you can provide a list in the
+    unsafe_list parameter, which will be populated with all items that
+    were omitted from the clip for safety reasons.
     """
+    if unsafe_list is None: unsafe_list = []
+
     clip = ['MiyamotoClip']
 
     for layer_num, layer in objects.items():
-        if layer_num not in {0, 1, 2}: continue
         for o in layer:
+            # No need to verify the layer number -- Miyamoto handles it fine
             clip.append(f'0:{o.tileset_id}:{o.type}:{layer_num}:{o.x}:{o.y}:{o.width}:{o.height}:{o.contents}')
 
     for s in sprites:
-        if s.type > 723: continue
+        # No need to verify the sprite ID -- Miyamoto handles it fine
 
         clip_parts = [f'1:{s.type}:{s.x}:{s.y}']
 
