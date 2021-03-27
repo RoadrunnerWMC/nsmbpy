@@ -65,13 +65,10 @@ def only_in(games):
 ############################ Objects (bgdat) ###########################
 ########################################################################
 
-
-class MixinPositionAndSize:
+class MixinPosition:
     """
-    Mixin that adds position, size, and dimensions properties to a class
-    with x, y, width and height attributes
+    Mixin that adds a position property to a class with x and y attributes
     """
-
     @property
     def position(self):
         return (self.x, self.y)
@@ -79,6 +76,12 @@ class MixinPositionAndSize:
     def position(self, value):
         (self.x, self.y) = value
 
+
+class MixinSizeAndDimensions:
+    """
+    Mixin that adds size and dimensions properties to a class
+    with x, y, width and height attributes
+    """
     @property
     def size(self):
         return (self.width, self.height)
@@ -94,7 +97,7 @@ class MixinPositionAndSize:
         (self.x, self.y, self.width, self.height) = value
 
 
-class LevelObject(PerGameStruct, MixinPositionAndSize):
+class LevelObject(PerGameStruct, MixinPosition, MixinSizeAndDimensions):
     """
     A class representing an object in a bgdat file.
     """
@@ -102,12 +105,12 @@ class LevelObject(PerGameStruct, MixinPositionAndSize):
     block_terminator = b'\xFF\xFF'
 
     tileset_id: PerGameStructField / U16(0x00).rshift(12)
-    type:      PerGameStructField / U16(0x00).mask(0xFFF)
-    x:         PerGameStructField / S16(0x02)
-    y:         PerGameStructField / S16(0x04)
-    width:     PerGameStructField / S16(0x06)
-    height:    PerGameStructField / S16(0x08)
-    contents:  PerGameStructField / Varies(like_nsmbu=U8(0x0A))
+    type:       PerGameStructField / U16(0x00).mask(0xFFF)
+    x:          PerGameStructField / S16(0x02)
+    y:          PerGameStructField / S16(0x04)
+    width:      PerGameStructField / S16(0x06)
+    height:     PerGameStructField / S16(0x08)
+    contents:   PerGameStructField / Varies(like_nsmbu=U8(0x0A))
 
 
 def load_bgdat(game, data):
@@ -235,9 +238,9 @@ def save_tileset_names_block(game, tileset_names):
     return b''.join([tn.encode('latin-1').ljust(32, b'\0') for tn in tileset_names])
 
 
-class LevelOptions(LevelItem):
+class LevelAreaSettings(LevelItem):
     """
-    A class representing the "options" block in a course file.
+    A class representing the "settings" block in a course file.
     """
     length = Varies(nsmb=32, nsmbw=20, nsmb2=24, like_nsmbu=24)
 
@@ -275,6 +278,7 @@ class LevelOptions(LevelItem):
                                                                                     nsmbw=U16(0x08).mask_bool(8),
                                                                                                      nsmb2=U16(0x08).mask_bool(8),
                                                                                                                       like_nsmbu=U16(0x08).mask_bool(8))
+    size_camera_to_zone_width:          PerGameStructField / Varies(                                 nsmb2=U16(0x08).mask_bool(1))
     start_as_mini_mario:                PerGameStructField / Varies(nsmb=U16(0x02).mask_bool(1))
     force_mini_mario_physics:           PerGameStructField / Varies(nsmb=U16(0x02).mask_bool(2))
     initial_time_limit:                 PerGameStructField / Varies(nsmb=S16(0x04), nsmbw=U16(0x0A), nsmb2=U16(0x0A), like_nsmbu=U16(0x0A))
@@ -327,21 +331,21 @@ class LevelZoneBounds(LevelItem):
     # NSMBW: seems unused?
     # NSMBU: ??
 
-    id:                    PerGameStructField / U32(0x10)
+    id:                    PerGameStructField / U16(0x10)
 
-    vertical_scroll_limit: PerGameStructField / U32(0x12)
+    vertical_scroll_limit: PerGameStructField / U16(0x12)
     # NSMBDS/NSMB2: values 0-E set a limit of vertical scrolling (measured in tiles), and F means unlimited
     # NSMBW: 0 means no vertical scrolling, 1+ means unlimited
     # NSMBU: ??
 
 
-class LevelBackgroundLayer(LevelItem):
+class LevelBackgroundLayer(LevelItem, MixinPosition):
     """
     A class representing one layer of a two-layered (bgA/bgB) background
     """
     length = Varies(nsmb=20, nsmbw=24)
 
-    class BackgroundScrollRate(StructFieldEnum):
+    class ScrollRate(StructFieldEnum):
         RATE_0_0:       0.0      = Varies(         nsmbw=0)
         RATE_0_0_ALT:   0.0      = Varies(         nsmbw=9)
         RATE_0_0625:    0.0625   = Varies(nsmb=6)
@@ -369,12 +373,12 @@ class LevelBackgroundLayer(LevelItem):
         def rate(self):
             """
             Return the actual scroll rate as a float; i.e.
-            BackgroundScrollRate.RATE_0_25.rate -> 0.25
+            ScrollRate.RATE_0_25.rate -> 0.25
             """
             return type(self).__annotations__[self.name]
 
 
-    class BackgroundZoom(StructFieldEnum):
+    class Zoom(StructFieldEnum):
         ZOOM_100_0: 100.0 = Varies(nsmbw=0)
         ZOOM_125_0: 125.0 = Varies(nsmbw=1)
         ZOOM_150_0: 150.0 = Varies(nsmbw=2)
@@ -384,7 +388,7 @@ class LevelBackgroundLayer(LevelItem):
         def zoom(self):
             """
             Return the actual zoom level as a float; i.e.
-            BackgroundZoom.ZOOM_125_0.zoom -> 125.0
+            Zoom.ZOOM_125_0.zoom -> 125.0
             """
             return type(self).__annotations__[self.name]
 
@@ -402,17 +406,17 @@ class LevelBackgroundLayer(LevelItem):
     # Position, scrolling
     x:               PerGameStructField / Varies(                nsmbw=S16(0x06))
     y:               PerGameStructField / Varies(                nsmbw=S16(0x08))
-    x_scroll_rate:   PerGameStructField / Varies(nsmb=U8(0x0A).mask(0xF).enum(BackgroundScrollRate),
-                                                                 nsmbw=S16(0x02).enum(BackgroundScrollRate))
-    y_scroll_rate:   PerGameStructField / Varies(nsmb=U8(0x0C).mask(0xF).enum(BackgroundScrollRate),
-                                                                 nsmbw=S16(0x04).enum(BackgroundScrollRate))
+    x_scroll_rate:   PerGameStructField / Varies(nsmb=U8(0x0A).mask(0xF).enum(ScrollRate),
+                                                                 nsmbw=S16(0x02).enum(ScrollRate))
+    y_scroll_rate:   PerGameStructField / Varies(nsmb=U8(0x0C).mask(0xF).enum(ScrollRate),
+                                                                 nsmbw=S16(0x04).enum(ScrollRate))
     move_downwards:  PerGameStructField / Varies(nsmb=U8(0x0C).mask_bool(0x80))  # crashes sometimes
 
     # NSMBW stuff
     file_id_1:       PerGameStructField / Varies(                nsmbw=U16(0x0A))
     file_id_2:       PerGameStructField / Varies(                nsmbw=U16(0x0C))
     file_id_3:       PerGameStructField / Varies(                nsmbw=U16(0x0E))
-    zoom:            PerGameStructField / Varies(                nsmbw=U8(0x13).enum(BackgroundZoom))
+    zoom:            PerGameStructField / Varies(                nsmbw=U8(0x13).enum(Zoom))
 
 
 class LevelTilesetInfo(LevelItem):
@@ -430,7 +434,7 @@ class LevelTilesetInfo(LevelItem):
     # Plus more (unused) stuff maybe?
 
 
-class LevelBackground(LevelItem):
+class LevelBackground(LevelItem, MixinPosition):
     """
     A class representing a "DistantView"-style background struct
     """
@@ -467,7 +471,7 @@ class LevelBackground(LevelItem):
         self.name_bytes = value.encode('latin-1').ljust(16, b'\0')
 
 
-class LevelEntrance(LevelItem):
+class LevelEntrance(LevelItem, MixinPosition):
     """
     A class representing an entrance in a course file.
     """
@@ -587,7 +591,7 @@ class LevelEntrance(LevelItem):
         self.non_enterable = not value
 
 
-class LevelSprite(LevelItem):
+class LevelSprite(LevelItem, MixinPosition):
     """
     A class representing a sprite in a course file.
     """
@@ -627,7 +631,7 @@ def save_used_sprite_ids_block(game, ids):
     return b''.join([struct.pack(game.endianness() + 'Hxx', x) for x in sorted(ids)])
 
 
-class LevelZone(LevelItem, MixinPositionAndSize):
+class LevelZone(LevelItem, MixinPosition, MixinSizeAndDimensions):
     """
     A class representing a zone in a course file.
     """
@@ -642,11 +646,11 @@ class LevelZone(LevelItem, MixinPositionAndSize):
     lighting:             PerGameStructField / Varies(               nsmbw=U16(0x0A),                 like_nsmbu=U16(0x0A))
     nsmb2_unk_08:         PerGameStructField / Varies(                               nsmb2=U16(0x0A))
 
-    id:                   PerGameStructField / Varies(nsmb=U8(0x08), nsmbw=U8(0x0C), nsmb2=U8(0x0C), like_nsmbu=U8(0x0C)) = 1
+    id:                   PerGameStructField / Varies(nsmb=U8(0x08), nsmbw=U8(0x0C), nsmb2=U8(0x0C), like_nsmbu=U8(0x0C))
     bounds_id:            PerGameStructField / Varies(nsmb=U8(0x09), nsmbw=U8(0x0D), nsmb2=U8(0x0D), like_nsmbu=U8(0x0D))
 
-    tracking_settings:    PerGameStructField / Varies(               nsmbw=U8(0x0E),                 like_nsmbu=U8(0x0E))
-    zoom:                 PerGameStructField / Varies(               nsmbw=U8(0x0F),                 like_nsmbu=U8(0x0F))
+    camera_mode:          PerGameStructField / Varies(               nsmbw=U8(0x0E),                 like_nsmbu=U8(0x0E))
+    camera_zoom:          PerGameStructField / Varies(               nsmbw=U8(0x0F),                 like_nsmbu=U8(0x0F))
     visibility:           PerGameStructField / Varies(               nsmbw=U8(0x11),                 like_nsmbu=U8(0x11))
 
     bga_block_id:         PerGameStructField / Varies(nsmb=U8(0x0D), nsmbw=U8(0x12))
@@ -657,7 +661,8 @@ class LevelZone(LevelItem, MixinPositionAndSize):
     multiplayer_tracking: PerGameStructField / Varies(               nsmbw=U8(0x14), nsmb2=U8(0x14), like_nsmbu=U8(0x14))
     progress_path_id:     PerGameStructField / Varies(nsmb=U8(0x0F),                 nsmb2=U8(0x15))
     music:                PerGameStructField / Varies(nsmb=U8(0x0A), nsmbw=U8(0x16), nsmb2=U8(0x16), like_nsmbu=U8(0x16))
-    sound_modulation:     PerGameStructField / Varies(               nsmbw=U8(0x17),                 like_nsmbu=U8(0x17))
+    sound_modulation:     PerGameStructField / Varies(               nsmbw=U8(0x17).rshift(4),       like_nsmbu=U8(0x17).rshift(4))
+    delay_music_for_boss: PerGameStructField / Varies(               nsmbw=U8(0x17).mask(0xF).bool(),like_nsmbu=U8(0x17).mask(0xF).bool())
 
     nsmbu_flags:          PerGameStructField / Varies(                                               like_nsmbu=U8(0x19))
     # & 01 -> Start zoomed out
@@ -670,7 +675,7 @@ class LevelZone(LevelItem, MixinPositionAndSize):
     # & 80 -> Toad-house related (2)
 
 
-class LevelLocation(LevelItem, MixinPositionAndSize):
+class LevelLocation(LevelItem, MixinPosition, MixinSizeAndDimensions):
     """
     A class representing a location in a course file.
     """
@@ -683,6 +688,21 @@ class LevelLocation(LevelItem, MixinPositionAndSize):
     id:     PerGameStructField / U8(0x08) = 1
 
 
+class LevelEventCamera(LevelItem):
+    """
+    A class representing an event-controlled camera settings struct in a
+    course file. (NSMBW-only.) (Unused.)
+    """
+    length = 20
+
+    bounds_id:           PerGameStructField / U8(0x0C)
+    camera_mode:         PerGameStructField / U8(0x0D)
+    camera_zoom:         PerGameStructField / U8(0x0E)
+    zone_struct_byte_10: PerGameStructField / U8(0x0F)
+
+    event_id:            PerGameStructField / U8(0x12)
+
+
 class LevelPath(LevelItem):
     """
     A class representing a path in a course file.
@@ -692,11 +712,10 @@ class LevelPath(LevelItem):
     id:               PerGameStructField / U8(0x00) = 1
     start_node_index: PerGameStructField / U16(0x02)
     num_nodes:        PerGameStructField / U16(0x04)
-    loop_flag:        PerGameStructField / U16(0x06)
-    # loop flag is active if == 2
+    loop_flag:        PerGameStructField / U16(0x06).mask_bool(2)
 
 
-class LevelPathNode(LevelItem):
+class LevelPathNode(LevelItem, MixinPosition):
     """
     A class representing a path node in a course file.
     """
@@ -708,11 +727,11 @@ class LevelPathNode(LevelItem):
     acceleration: PerGameStructField / Varies(nsmb=S32(0x08), nsmbw=F32(0x08), nsmb2=F32(0x08), like_nsmbu=F32(0x08))
     delay:        PerGameStructField / Varies(nsmb=S16(0x0C), nsmbw=S16(0x0C), nsmb2=S16(0x0C), like_nsmbu=S16(0x0C))
 
-    user_data:    PerGameStructField / Varies(nsmb=S16(0x0E))
+    user_data:    PerGameStructField / Varies(nsmb=S16(0x0E),                  nsmb2=U8(0x10))
+    rotation:     PerGameStructField / Varies(                                 nsmb2=U16(0x0E))
+    next_path_id: PerGameStructField / Varies(                                 nsmb2=U8(0x11))
 
-    # TODO: this struct is unfinished:
-    # NSMB2 has 4 more bytes of random unknown stuff starting at 0xE.
-    # NSMBU has 5.
+    # TODO: this struct is unfinished: NSMBU has 5 more bytes of random unknown stuff starting at 0xE.
 
 
 class LevelProgressPath(LevelItem):
@@ -721,12 +740,15 @@ class LevelProgressPath(LevelItem):
     """
     length = Varies(nsmb=8, nsmbw=8, nsmb2=12, like_nsmbu=12)
 
-    id:               PerGameStructField / U8(0x00) = 1
-    start_node_index: PerGameStructField / U16(0x02)
-    num_nodes:        PerGameStructField / U16(0x04)
+    id:                  PerGameStructField / U8(0x00) = 1
+    start_node_index:    PerGameStructField / U16(0x02)
+    num_nodes:           PerGameStructField / U16(0x04)
+    alternate_path_flag: PerGameStructField / Varies(nsmb2=U8(0x09).mask_bool(1))
+
+    # TODO: check if alternate_path_flag is in NSMBU
 
 
-class LevelProgressPathNode(LevelItem):
+class LevelProgressPathNode(LevelItem, MixinPosition):
     """
     A class representing a progress path node in a course file.
     """
@@ -816,7 +838,7 @@ BLOCK_LOADERS_SAVERS = {}
 #     saver(game: Game, course: LevelCourse) -> bytes
 
 BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS] = [
-    LevelOptions.get_individual_loader_and_saver('options'),
+    LevelAreaSettings.get_individual_loader_and_saver('settings'),
     LevelZoneBounds.get_block_loader_and_saver('zone_bounds'),
     LevelBackgroundLayer.get_block_loader_and_saver('backgrounds_b'),
     LevelTilesetInfo.get_block_loader_and_saver('tileset_infos'),
@@ -835,7 +857,7 @@ assert len(BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS]) == 14
 
 BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS_WII] = [
     get_tileset_names_loader_and_saver(),
-    LevelOptions.get_individual_loader_and_saver('options'),
+    LevelAreaSettings.get_individual_loader_and_saver('settings'),
     LevelZoneBounds.get_block_loader_and_saver('zone_bounds'),
     get_raw_loader_and_saver(3, 8),
     LevelBackgroundLayer.get_block_loader_and_saver('backgrounds_a'),
@@ -845,7 +867,7 @@ BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS_WII] = [
     get_used_sprite_ids_loader_and_saver(),
     LevelZone.get_block_loader_and_saver('zones'),
     LevelLocation.get_block_loader_and_saver('locations'),
-    get_raw_loader_and_saver(11),
+    LevelEventCamera.get_block_loader_and_saver('event_cameras'),
     LevelPath.get_block_loader_and_saver('paths'),
     LevelPathNode.get_block_loader_and_saver('path_nodes'),
 ]
@@ -853,7 +875,7 @@ assert len(BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS_WII]) == 14
 
 BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS_2] = [
     get_tileset_names_loader_and_saver(),
-    LevelOptions.get_individual_loader_and_saver('options'),
+    LevelAreaSettings.get_individual_loader_and_saver('settings'),
     LevelZoneBounds.get_block_loader_and_saver('zone_bounds'),
     get_raw_loader_and_saver(3, 8),
     LevelBackground.get_block_loader_and_saver('backgrounds'),
@@ -874,7 +896,7 @@ assert len(BLOCK_LOADERS_SAVERS[Game.NEW_SUPER_MARIO_BROS_2]) == 17
 
 NSMBU_LOADERS_SAVERS = [
     get_tileset_names_loader_and_saver(),
-    LevelOptions.get_individual_loader_and_saver('options'),
+    LevelAreaSettings.get_individual_loader_and_saver('settings'),
     LevelZoneBounds.get_block_loader_and_saver('zone_bounds'),
     get_raw_loader_and_saver(3, 8),
     LevelBackground.get_block_loader_and_saver('backgrounds'),
@@ -909,7 +931,7 @@ class LevelCourse:
         self.unparsed_blocks = {}
 
         self.tileset_names = ['', '', '', '']
-        self.options = None
+        self.settings = None
         self.zone_bounds = []
         self.backgrounds_a = []
         self.backgrounds_b = []
@@ -920,11 +942,16 @@ class LevelCourse:
         self.used_sprite_ids = set()
         self.zones = []
         self.locations = []
+        self.event_cameras = []
         self.paths = []
         self.path_nodes = []
         self.progress_paths = []
         self.progress_path_nodes = []
         self.sprite_sets = []
+
+
+    def __getattr__(self, name):
+        return getattr(self.settings, name)
 
 
     @classmethod
@@ -975,7 +1002,9 @@ class LevelCourse:
         return save_course_blocks(blocks, self.metadata, game.endianness())
 
 
-    def prepare_for_saving(self, game, *, update_sprite_zone_ids=True, sort_sprites_by_zone=True, update_used_sprite_ids=True):
+    def prepare_for_saving(self, game, *,
+            update_sprite_zone_ids=True, update_entrance_zone_ids=True,
+            sort_sprites_by_zone=True, update_used_sprite_ids=True):
         """
         Make some automatic adjustments required for the course to not
         crash the game. Each adjustment can be individually disabled if
@@ -1002,6 +1031,22 @@ class LevelCourse:
                 # assign zone ID 0.
                 for s in self.sprites:
                     s.zone_id = 0
+
+
+        if update_entrance_zone_ids:
+            if self.zones:
+                for e in self.entrances:
+                    e.zone_id = self.map_position_to_zone(e.x, e.y).id
+
+            else:
+                # Welp.
+                # Could raise an exception, but that'll just manifest as
+                # an annoying edge-case crash in the overlying
+                # application. I don't want that. Instead, let's just
+                # assign zone ID 0.
+
+                for e in self.entrances:
+                    e.zone_id = 0
 
         if sort_sprites_by_zone:
             # Note: this HAS to happen after the sprite zone IDs are
@@ -1056,7 +1101,53 @@ class LevelCourse:
         return closest_zone
 
 
-class Area:
+    def _get_by_id(self, L, id):
+        for item in L:
+            if item.id == id:
+                return item
+
+
+    def get_zone_bounds_by_id(self, id):
+        return self._get_by_id(self.zone_bounds, id)
+
+
+    def get_background_a_by_id(self, id):
+        return self._get_by_id(self.backgrounds_a, id)
+
+
+    def get_background_b_by_id(self, id):
+        return self._get_by_id(self.backgrounds_b, id)
+
+
+    def get_tileset_info_by_id(self, id):
+        return self._get_by_id(self.tileset_infos, id)
+
+
+    def get_background_by_id(self, id):
+        return self._get_by_id(self.backgrounds, id)
+
+
+    def get_entrance_by_id(self, id):
+        return self._get_by_id(self.entrances, id)
+
+
+    def get_zone_by_id(self, id):
+        return self._get_by_id(self.zones, id)
+
+
+    def get_location_by_id(self, id):
+        return self._get_by_id(self.locations, id)
+
+
+    def get_path_by_id(self, id):
+        return self._get_by_id(self.paths, id)
+
+
+    def get_progress_path_by_id(self, id):
+        return self._get_by_id(self.progress_paths, id)
+
+
+class LevelArea:
     """
     An area
     """
@@ -1070,6 +1161,10 @@ class Area:
         self.layer_0 = layer_0 if layer_0 else []
         self.layer_1 = layer_1 if layer_1 else []
         self.layer_2 = layer_2 if layer_2 else []
+
+
+    def __getattr__(self, name):
+        return getattr(self.course, name)
 
 
     @classmethod
@@ -1136,7 +1231,7 @@ class Level:
     """
     A full level
     """
-    areas: typing.List[Area]
+    areas: typing.List[LevelArea]
 
     def __init__(self, areas=None):
         self.areas = areas if areas else []
@@ -1144,7 +1239,7 @@ class Level:
 
     @classmethod
     def load(cls, game, data):
-        return cls.load_with_area_loader(game, data, Area.load)
+        return cls.load_with_area_loader(game, data, LevelArea.load)
 
 
     @classmethod

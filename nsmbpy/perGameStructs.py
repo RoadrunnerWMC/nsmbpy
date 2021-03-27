@@ -163,7 +163,10 @@ class ConcreteNumericField(ConcreteStructField):
             value = (origValue & ~bitmask) | value
 
         # Pack into struct
-        struct.pack_into(format_string, data, self.offset, value)
+        try:
+            struct.pack_into(format_string, data, self.offset, value)
+        except struct.error:
+            raise ValueError(f'struct.pack_into({format_string!r}, {data!r}, {self.offset!r}, {value!r})')
 
 
     class BitmaskTransformation(Transformation):
@@ -425,7 +428,7 @@ class PerGameStruct:
     @classmethod
     def fields(cls):
         """
-        Iterator over all field names, format strings, and offsets
+        Iterator over all field names
         """
         for name, annotation in cls.__annotations__.items():
             if isinstance(annotation, PerGameStructField):
@@ -500,6 +503,27 @@ class PerGameStruct:
             format.save(game, data, getattr(self, field_name))
 
         return bytes(data)
+
+
+    def copy(self):
+        """
+        Create a new instance of the same class, with all of the same
+        field values as the current one.
+        """
+        self2 = type(self)()
+
+        for field_name in self.fields():
+            value = getattr(self, field_name)
+
+            # Handle some common mutable types, just in case
+            if isinstance(value, list):
+                value = list(value)
+            elif isinstance(value, bytearray):
+                value = bytearray(value)
+
+            setattr(self2, field_name, value)
+
+        return self2
 
 
     @classmethod
