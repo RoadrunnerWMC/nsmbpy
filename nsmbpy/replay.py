@@ -18,6 +18,7 @@
 Support for replay files.
 """
 
+import dataclasses
 import enum
 import struct
 import typing
@@ -63,7 +64,8 @@ class WiiRemoteButtonInputs(enum.IntFlag):
     DPAD_DOWN  = 0x0001
 
 
-class NSMBWReplay:
+@dataclasses.dataclass
+class NSMBWReplayFile:
     """
     Represents a NSMBW replay file (otehon, otekara, title).
 
@@ -75,6 +77,7 @@ class NSMBWReplay:
     Note 2: for multiplayer replays, each player has a different replay file.
     """
 
+    @dataclasses.dataclass
     class Frame:
         """
         Represents one frame of input
@@ -255,11 +258,7 @@ class NSMBWReplay:
     unk38: int = 0  # range 0-0xFFFFFFFF / used values: {0x815e7214, 0x815e7218}
     unk3C: int = 0  # range 0-0xFFFFFFFF / used values: {0x805025d8, 0x80502cd8, 0x805030d8, 0x805035f8, 0x80504118, 0x80504198, 0x80504398, 0x80504498, 0x80504518, 0x805046d8, 0x80504a18, 0x80504af8, 0x80504b18, 0x80504e38}
 
-    frames: typing.List[Frame]
-
-
-    def __init__(self):
-        self.frames = []
+    frames: typing.List[Frame] = dataclasses.field(default_factory=list)
 
 
     @classmethod
@@ -303,6 +302,7 @@ class NSMBWReplay:
 
         return self
 
+
     def save(self) -> bytes:
         """
         Save the file back to bytes.
@@ -323,3 +323,14 @@ class NSMBWReplay:
         buf += b'\xFF\xFF\xFF\xFF'
 
         return bytes(buf)
+
+
+class NSMBWReplay:
+    """
+    Represents a single replay (which can include more than one file)
+    """
+    files: typing.List[NSMBWReplayFile]
+
+    def __init__(self, files=None):
+        if files is None: files = []
+        self.files = files
