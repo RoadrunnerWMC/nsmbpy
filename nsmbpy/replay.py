@@ -67,10 +67,10 @@ class WiiRemoteButtonInputs(enum.IntFlag):
 @dataclasses.dataclass
 class NSMBWReplayFile:
     """
-    Represents a NSMBW replay file (otehon, otekara, title).
+    Represents a NSMBW replay file (otakara, otehon, title).
 
     Note:
-    - Otekara: Hint Movies (S = Super Skills, U = 1-UPs, G = Secret Exit, C = Star Coin)
+    - Otakara: Hint Movies (S = Super Skills, U = 1-UPs, G = Secret Exit, C = Star Coin)
     - Otehon: Super Guide
     - Title: Title Screen (attract mode)
 
