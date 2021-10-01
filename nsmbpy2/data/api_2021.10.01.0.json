@@ -1,0 +1,27 @@
+{
+    "blocks": [
+        null
+    ],
+    "structs": {
+        "Zone": {
+            "_length": 24,
+            "x":                              "be s16 @ 0x00",
+            "y":                              "be s16 @ 0x02",
+            "width":                          "be s16 @ 0x04",
+            "height":                         "be s16 @ 0x06",
+            "theme":                          "be u16 @ 0x08",
+            "lighting":                       "be u16 @ 0x0a",
+            "id":                             "be u8 @ 0x0c",
+            "bounds_id":                      "be u8 @ 0x0d",
+            "camera_mode":                    "be u8 @ 0x0e",
+            "camera_zoom":                    "be u8 @ 0x0f",
+            "visibility":                     "be u8 @ 0x11",
+            "bga_block_id":                   "be u8 @ 0x12",
+            "bgb_block_id":                   "be u8 @ 0x13",
+            "multiplayer_tracking":           "be u8 @ 0x14",
+            "music":                          "be u8 @ 0x16",
+            "sound_modulation":               ["be u8 @ 0x17", ">> 4"],
+            "dont_begin_music_automatically": ["be u8 @ 0x17", "& 0xf", "bool"]
+        }
+    }
+}
