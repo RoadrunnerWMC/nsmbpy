@@ -1,83 +1,94 @@
-import json
-from pathlib import Path
-from typing import List
+"""
+The real implementation of nsmbpy2.level
+"""
+
+from typing import List, Tuple
 
 from . import Game
-from . import base_struct
-from . import base_struct_from_json
+from . import abstract_json_versioned_api
 
 
-DATA_FOLDER = Path(__file__).parent / 'data'
-API_VERSIONS_WHITELIST_FP = DATA_FOLDER / 'api_versions_whitelist.txt'
 
-
-def load_api_versions_whitelist() -> List[str]:
+class PositionMixin:
     """
-    Load the api_versions_whitelist.txt file
+    Mixin that adds a position property to a class with x and y attributes
     """
-    whitelist = []
-    with API_VERSIONS_WHITELIST_FP.open('r', encoding='utf-8') as f:
-        for line in f:
-            line = line.strip()
-            if line:
-                whitelist.append(line)
-    return whitelist
+    @property
+    def position(self) -> Tuple[int, int]:
+        return (self.x, self.y)
+    @position.setter
+    def position(self, value: Tuple[int, int]) -> None:
+        (self.x, self.y) = value
 
-api_versions_whitelist = load_api_versions_whitelist()
 
-def load_api_definition(name: str) -> dict:
+class SizeMixin:
     """
-    Load the JSON API definition with the given name
+    Mixin that adds a size property to a class with width and height attributes
     """
-    global api_versions_whitelist
-
-    if name not in api_versions_whitelist:
-        raise ValueError(f'Unrecognized API version: "{name}"')
-
-    fp = DATA_FOLDER / f'api_{name}.json'
-    with fp.open('r', encoding='utf-8') as f:
-        return json.load(f)
+    @property
+    def size(self) -> Tuple[int, int]:
+        return (self.width, self.height)
+    @size.setter
+    def size(self, value: Tuple[int, int]) -> None:
+        (self.width, self.height) = value
 
 
-class Api:
+class DimensionsMixin:
+    """
+    Mixin that adds a dimensions properties to a class with x, y, width
+    and height attributes
+    It's recommended to also add PositionMixin and SizeMixin, too
+    """
+    @property
+    def dimensions(self) -> Tuple[int, int, int, int]:
+        return (self.x, self.y, self.width, self.height)
+    @dimensions.setter
+    def dimensions(self, value: Tuple[int, int, int, int]) -> None:
+        (self.x, self.y, self.width, self.height) = value
+
+
+MixinsPerClassName = {
+    'Zone': [PositionMixin, SizeMixin, DimensionsMixin],
+}
+
+
+
+class LevelAPI(abstract_json_versioned_api.VersionedAPIWithStructs):
     """
     Class representing the entire API -- a set of classes you can use to
     represent a level
     """
-    fields_api_version: str
     game: Game
 
-    Level: type
-    Area: type
-    Course: type
+    # Level: type
+    # Area: type
+    # Course: type
 
-    LevelItem: type
-    AreaSettings: type
-    ZoneBounds: type
-    BackgroundLayer: type
-    DSTilesetInfo: type
-    DistantViewBackground: type
-    Entrance: type
-    Sprite: type
-    UsedSpriteID: type
-    Zone: type
-    Location: type
-    CameraProfile: type
-    Path: type
-    PathNode: type
-    ProgressPath: type
-    ProgressPathNode: type
+    # LevelItem: type
+    # AreaSettings: type
+    # ZoneBounds: type
+    # BackgroundLayer: type
+    # DSTilesetInfo: type
+    # DistantViewBackground: type
+    # Entrance: type
+    # Sprite: type
+    # UsedSpriteID: type
+    # Zone: type
+    # Location: type
+    # CameraProfile: type
+    # Path: type
+    # PathNode: type
+    # ProgressPath: type
+    # ProgressPathNode: type
 
     @classmethod
-    def build(cls, fields_api_version: str, game: Game) -> 'Api':
-        self = cls()
-
-        self.fields_api_version = fields_api_version
-        self.fields_api = load_api_definition(fields_api_version)
+    def build(cls, api_version: str, game: Game) -> 'LevelAPI':
+        self = super().build(api_version)
         self.game = game
-
-        for struct_name, struct_def in self.fields_api['structs'].items():
-            new_cls = base_struct_from_json.create_struct_class(struct_name, struct_def)
-            setattr(self, struct_name, new_cls)
-
         return self
+
+    def get_mixins_for_struct(self, name: str) -> List[type]:
+        if name in MixinsPerClassName:
+            return MixinsPerClassName[name]
+        else:
+            return super().get_mixins_for_struct(name)

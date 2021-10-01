@@ -1,4 +1,9 @@
-import json
+"""
+This file implements a system for creating base_struct.BaseStructs from
+struct definitions in a particular JSON format.
+"""
+
+from typing import Dict, List, Union
 
 from . import base_struct
 
@@ -38,7 +43,7 @@ def create_field_from_json_spec(spec: object) -> base_struct.StructField:
     return field
 
 
-def create_struct_class(name: str, definition: dict) -> type:
+def create_struct_class(name: str, definition: Dict[str, Union[str, List[str]]], *, mixins:List[type]=None) -> type:
     """
     Create a BaseStruct subclass from a json definition
     """
@@ -50,6 +55,6 @@ def create_struct_class(name: str, definition: dict) -> type:
 
         fields[key] = create_field_from_json_spec(value)
 
-    return base_struct.create_basestruct_subclass(name, definition['_length'], fields)
+    return base_struct.create_basestruct_subclass(name, definition['_length'], fields, mixins=mixins)
 
     return new_cls

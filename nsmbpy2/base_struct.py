@@ -1,5 +1,9 @@
+"""
+This file implements a generic object-oriented struct system.
+"""
+
 import struct
-from typing import Any, Callable, Dict, Generic, List, Literal, TypeVar
+from typing import Any, Dict, Generic, List, Literal, TypeVar
 
 from . import _common
 
@@ -308,7 +312,7 @@ class BaseStruct:
         try:
             return self.get(key)
         except ValueError:
-            raise AttributeError
+            raise AttributeError(key)
 
     def __setattr__(self, key: str, value: Any) -> None:
         if key == 'raw_data':
@@ -328,10 +332,16 @@ class BaseStruct:
             self.__dict__['raw_data'] = value
             return
 
+        # This allows @properties to work correctly
+        # Yes, it looks a bit gross
+        elif hasattr(self.__class__, key) and hasattr(getattr(self.__class__, key), '__set__'):
+            getattr(self.__class__, key).__set__(self, value)
+            return
+
         try:
             self.set(key, value)
         except ValueError:
-            raise AttributeError
+            raise AttributeError(key)
 
     def __str__(self) -> str:
         return f'<{type(self).__name__}: {self.raw_data.hex()}>'
@@ -364,13 +374,16 @@ class BaseStruct:
         self.raw_data[key] = value
 
 
-def create_basestruct_subclass(name: str, raw_data_length: int, fields: dict) -> type:
+def create_basestruct_subclass(name: str, raw_data_length: int, fields: Dict[str, StructField], *, mixins:List[type]=None) -> type:
     """
     Dynamically create a new subclass of BaseStruct
     """
+    if mixins is None:
+        mixins = []
+
     return type(
         name,
-        (BaseStruct,),
+        (BaseStruct, *mixins),
         {
             'raw_data_length': raw_data_length,
             'fields': fields,
