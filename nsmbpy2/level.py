@@ -11,5 +11,5 @@ from . import Game
 from ._level import LevelAPI
 
 
-def get(api_version: str, game: Game) -> LevelAPI:
-    return LevelAPI.build(api_version, game)
+def get(game: Game, api_version: str) -> LevelAPI:
+    return LevelAPI.build(game, api_version)

@@ -28,3 +28,14 @@ def short_bytes_repr(data: bytes, max_len=None):
         return final + '...'
     else:
         return final
+
+
+def load_null_terminated_string_from(
+        data, offset, charWidth=1, encoding='latin-1'):
+    """
+    Load a null-terminated string from data at offset, with the options
+    given.
+    This is copypasted from ndspy.
+    """
+    end = data.find(b'\0' * charWidth, offset)
+    return data[offset:end].decode(encoding)

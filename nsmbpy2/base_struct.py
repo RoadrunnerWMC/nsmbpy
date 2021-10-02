@@ -2,8 +2,9 @@
 This file implements a generic object-oriented struct system.
 """
 
+import enum
 import struct
-from typing import Any, Dict, Generic, List, Literal, TypeVar
+from typing import Any, Dict, Generic, List, Literal, TypeVar, Union
 
 from . import _common
 
@@ -19,14 +20,6 @@ class StructField(Generic[FT]):
 
     def set(self, data: bytearray, value: FT) -> None:
         raise NotImplementedError
-
-    def transform(self, name: str, *values) -> 'StructField':
-        raise ValueError(f'unsupported field transformation: "{name}({str(values)[1:-1]})"')
-
-
-# Names for field types (not the actual class names -- rather, names
-# that the json api definitions can reference)
-FIELD_TYPES_BY_NAME = {}
 
 
 class BytestringField(StructField[bytes]):
@@ -47,7 +40,31 @@ class BytestringField(StructField[bytes]):
     def set(self, data: bytearray, value: bytes) -> None:
         data[self.offset : self.offset + self.length] = value
 
-FIELD_TYPES_BY_NAME['bytestring'] = BytestringField
+    def decode(self, encoding: str) -> 'StringField':
+        """
+        Decode to a string when loading the field.
+        This is a fluent interface.
+        """
+        return StringField(self, encoding)
+
+
+class StringField(StructField[str]):
+    """
+    Wrapper field type for casting a (null-padded, fixed-length) BytestringField to a str
+    """
+    parent: BytestringField
+    encoding: str
+
+    def __init__(self, parent, encoding):
+        self.parent = parent
+        self.encoding = encoding
+
+    def get(self, data: bytes) -> str:
+        return self.parent.get(data).rstrip(b'\0').decode(self.encoding)
+
+    def set(self, data: bytearray, value: str) -> None:
+        self.parent.set(data, value.encode(self.encoding).ljust(self.parent.length, b'\0'))
+
 
 
 class NumericField(StructField[FT]):
@@ -62,6 +79,28 @@ class NumericField(StructField[FT]):
 
     def __init__(self, offset):
         self.offset = offset
+
+    def __init_subclass__(cls, **kwargs):
+        """
+        Get the endianness and struct-format-string-character arguments
+        from the class definition, and apply them.
+        """
+        EMPTY = object()
+
+        endianness = EMPTY
+        format_char = EMPTY
+
+        if 'endianness' in kwargs:
+            endianness = kwargs.pop('endianness')
+        if 'format_char' in kwargs:
+            format_char = kwargs.pop('format_char')
+
+        super().__init_subclass__(**kwargs)
+
+        if endianness is not EMPTY:
+            cls.endianness = endianness
+        if format_char is not EMPTY:
+            cls.format_char = format_char
 
     def format_string(self) -> str:
         """
@@ -100,16 +139,6 @@ class IntegralNumericField(NumericField[int]):
     This adds various transformations, both with the transform() method
     and as a fluent interface.
     """
-    def transform(self, name: str, *values) -> StructField:
-        if name == '&':
-            return NumericFieldMask(self, *values)
-        elif name == '<<':
-            return NumericFieldLshift(self, *values)
-        elif name == '>>':
-            return NumericFieldRshift(self, *values)
-        elif name == 'bool':
-            return NumericFieldBool(self, *values)
-        return super().transform(name, *values)
 
     def mask(self, bitmask: int) -> 'NumericFieldMask':
         """
@@ -148,29 +177,38 @@ class IntegralNumericField(NumericField[int]):
         num_trailing_zeros = len(bin(mask)) - len(bin(mask).rstrip('0'))
         return self.rshift(num_trailing_zeros).mask(1).bool()
 
+    def enum(self, enum_type: type) -> 'NumericFieldEnum':
+        """
+        Apply a transformation to enum when loading the field.
+        This is a fluent interface.
+        """
+        return NumericFieldEnum(self, enum_type)
+
 
 # Create subclasses of NumericField implementing all interesting struct
 # format-string characters
-for endian_value, endian_name in [('<', 'le'), ('>', 'be')]:
-    for format_name, format_char, format_superclass in [
-            ('u8', 'B', IntegralNumericField),
-            ('s8', 'b', IntegralNumericField),
-            ('u16', 'H', IntegralNumericField),
-            ('s16', 'h', IntegralNumericField),
-            ('u32', 'I', IntegralNumericField),
-            ('s32', 'i', IntegralNumericField),
-            ('u64', 'Q', IntegralNumericField),
-            ('s64', 'q', IntegralNumericField),
-            ('f32', 'f', NumericField),
-            ('f64', 'd', NumericField)]:
-        # Pick class name (lowercase)
-        name = f'{endian_name}_{format_name}'
-        # Create class (uppercase name)
-        cls = type(name.upper(), (format_superclass,), {'endianness': endian_value, 'format_char': format_char})
-        # Assign to FIELD_TYPES_BY_NAME (lowercase name)
-        FIELD_TYPES_BY_NAME[name] = cls
-        # Assign to module namespace (uppercase name)
-        exec(f'{name.upper()} = cls')
+class BE_U8(IntegralNumericField, endianness='>', format_char='B'): pass
+class BE_S8(IntegralNumericField, endianness='>', format_char='b'): pass
+class BE_U16(IntegralNumericField, endianness='>', format_char='H'): pass
+class BE_S16(IntegralNumericField, endianness='>', format_char='h'): pass
+class BE_U32(IntegralNumericField, endianness='>', format_char='I'): pass
+class BE_S32(IntegralNumericField, endianness='>', format_char='i'): pass
+class BE_U64(IntegralNumericField, endianness='>', format_char='Q'): pass
+class BE_S64(IntegralNumericField, endianness='>', format_char='q'): pass
+class BE_F32(IntegralNumericField, endianness='>', format_char='f'): pass
+class BE_F64(IntegralNumericField, endianness='>', format_char='d'): pass
+class LE_U8(IntegralNumericField, endianness='<', format_char='B'): pass
+class LE_S8(IntegralNumericField, endianness='<', format_char='b'): pass
+class LE_U16(IntegralNumericField, endianness='<', format_char='H'): pass
+class LE_S16(IntegralNumericField, endianness='<', format_char='h'): pass
+class LE_U32(IntegralNumericField, endianness='<', format_char='I'): pass
+class LE_S32(IntegralNumericField, endianness='<', format_char='i'): pass
+class LE_U64(IntegralNumericField, endianness='<', format_char='Q'): pass
+class LE_S64(IntegralNumericField, endianness='<', format_char='q'): pass
+class LE_F32(IntegralNumericField, endianness='<', format_char='f'): pass
+class LE_F64(IntegralNumericField, endianness='<', format_char='d'): pass
+U8 = BE_U8
+S8 = BE_S8
 
 
 class NumericFieldMask(IntegralNumericField):
@@ -182,7 +220,7 @@ class NumericFieldMask(IntegralNumericField):
 
     def __init__(self, parent, bitmask):
         self.parent = parent
-        self.bitmask = int(bitmask, 0)
+        self.bitmask = bitmask
 
     def get(self, data: bytes) -> int:
         return self.parent.get(data) & self.bitmask
@@ -200,7 +238,7 @@ class NumericFieldLshift(IntegralNumericField):
 
     def __init__(self, parent, amount):
         self.parent = parent
-        self.amount = int(amount, 0)
+        self.amount = amount
 
     def get(self, data: bytes) -> int:
         return self.parent.get(data) << self.amount
@@ -218,7 +256,7 @@ class NumericFieldRshift(IntegralNumericField):
 
     def __init__(self, parent, amount):
         self.parent = parent
-        self.amount = int(amount, 0)
+        self.amount = amount
 
     def get(self, data: bytes) -> int:
         return self.parent.get(data) >> self.amount
@@ -241,6 +279,33 @@ class NumericFieldBool(StructField[bool]):
 
     def set(self, data: bytearray, value: bool, *, bitmask:int=-1) -> None:
         self.parent.set(data, (1 if value else 0), bitmask=bitmask)
+
+
+ET = TypeVar('ET')  # "enum type"
+class NumericFieldEnum(StructField[ET]):
+    """
+    Wrapper field type for casting an IntegralNumericField to an IntEnum
+    subclass.
+    """
+    parent: IntegralNumericField
+    enum_type: type
+
+    def __init__(self, parent, enum_type):
+        self.parent = parent
+        self.enum_type = enum_type
+
+    def get(self, data: bytes) -> Union[ET, int]:
+        value = self.parent.get(data)
+        try:
+            return self.enum_type(value)
+        except ValueError:
+            return value
+
+    def set(self, data: bytearray, value: Union[ET, int], *, bitmask:int=-1) -> None:
+        if isinstance(value, int):
+            self.parent.set(data, value, bitmask=bitmask)
+        else:
+            self.parent.set(data, value.value, bitmask=bitmask)
 
 
 class BaseStruct:
@@ -389,3 +454,26 @@ def create_basestruct_subclass(name: str, raw_data_length: int, fields: Dict[str
             'fields': fields,
         },
     )
+
+
+def load_struct_array(data: bytes, struct_type: type, *, terminator:bytes=b'') -> List[BaseStruct]:
+    """
+    Helper function to load an array of structs, possibly with a terminator
+    """
+    arr = []
+    for item_offset in range(0, len(data) - len(terminator), struct_type.raw_data_length):
+        item_data = data[item_offset : item_offset + struct_type.raw_data_length]
+
+        if terminator and item_data.startswith(terminator):
+            break
+
+        arr.append(struct_type(item_data))
+
+    return arr
+
+
+def save_struct_array(elements: List[BaseStruct], *, terminator:bytes=b'') -> bytes:
+    """
+    Helper function to save an array of structs, possibly with a terminator
+    """
+    return b''.join([bytes(e) for e in elements] + [terminator])

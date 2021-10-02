@@ -1,0 +1,195 @@
+{
+    "default_endianness": "big",
+    "bgdat_terminator": "ff ff",
+    "course_blocks": [
+        {                             "struct": "TilesetNames", "single": true},
+        {"name": "settings",          "struct": "AreaSettings", "single": true},
+        {"name": "zone_bounds",       "struct": "ZoneBounds"},
+        {                             "struct": "UnknownBlock3"},
+        {"name": "backgrounds_a",     "struct": "BackgroundLayer"},
+        {"name": "backgrounds_b",     "struct": "BackgroundLayer"},
+        {"name": "entrances",         "struct": "Entrance"},
+        {"name": "sprites",           "struct": "Sprite", "terminator": "ff ff ff ff"},
+        {"name": "used_sprite_types", "struct": "UsedSpriteType"},
+        {"name": "zones",             "struct": "Zone"},
+        {"name": "locations",         "struct": "Location"},
+        {"name": "camera_profiles",   "struct": "CameraProfile"},
+        {"name": "paths",             "struct": "Path"},
+        {"name": "path_nodes",        "struct": "PathNode"}
+    ],
+    "enums": {
+        "LevelType": {
+            "NORMAL": 0,
+            "YELLOW_TOAD_HOUSE": 1,
+            "RED_TOAD_HOUSE": 2,
+            "GREEN_TOAD_HOUSE": 3
+        },
+        "BackgroundScrollRate": {
+            "RATE_0_0":     {"struct_value": 0,  "semantic_value": 0.0},
+            "RATE_0_125":   {"struct_value": 1,  "semantic_value": 0.125},
+            "RATE_0_25":    {"struct_value": 2,  "semantic_value": 0.25},
+            "RATE_0_375":   {"struct_value": 3,  "semantic_value": 0.375},
+            "RATE_0_5":     {"struct_value": 4,  "semantic_value": 0.5},
+            "RATE_0_625":   {"struct_value": 5,  "semantic_value": 0.625},
+            "RATE_0_75":    {"struct_value": 6,  "semantic_value": 0.75},
+            "RATE_0_875":   {"struct_value": 7,  "semantic_value": 0.875},
+            "RATE_1_0":     {"struct_value": 8,  "semantic_value": 1.0},
+            "RATE_0_0_ALT": {"struct_value": 9,  "semantic_value": 0.0},
+            "RATE_1_2":     {"struct_value": 10, "semantic_value": 1.2},
+            "RATE_1_5":     {"struct_value": 11, "semantic_value": 1.5},
+            "RATE_2_0":     {"struct_value": 12, "semantic_value": 2.0},
+            "RATE_4_0":     {"struct_value": 13, "semantic_value": 4.0}
+        },
+        "BackgroundZoom": {
+            "ZOOM_100_0": {"struct_value": 0, "semantic_value": 100.0},
+            "ZOOM_125_0": {"struct_value": 1, "semantic_value": 125.0},
+            "ZOOM_150_0": {"struct_value": 2, "semantic_value": 150.0},
+            "ZOOM_200_0": {"struct_value": 3, "semantic_value": 200.0}
+        }
+    },
+    "structs": {
+        "TilesetNames": {
+            "_length": 128,
+            "tileset_0": "string 0x20 ascii @ 0x00",
+            "tileset_1": "string 0x20 ascii @ 0x20",
+            "tileset_2": "string 0x20 ascii @ 0x40",
+            "tileset_3": "string 0x20 ascii @ 0x60"
+        },
+        "AreaSettings": {
+            "_length": 20,
+            "initial_event_ids_1": "u32 @ 0x00",
+            "initial_event_ids_2": "u32 @ 0x04",
+            "flags":               "u16 @ 0x08",
+            "wrap_across_edges":   ["u16 @ 0x08", "mask_bool 1"],
+            "unk_flag_8":          ["u16 @ 0x08", "mask_bool 8"],
+            "time_limit":          "u16 @ 0x0a",
+            "is_credits":          ["u8 @ 0x0c", "bool"],
+            "unk_0d":              "u8 @ 0x0d",
+            "unk_0e":              "u8 @ 0x0e",
+            "unk_0f":              "u8 @ 0x0f",
+            "initial_entrance_id": "u8 @ 0x10",
+            "is_ambush":           ["u8 @ 0x11", "bool"],
+            "level_type":          ["u8 @ 0x12", "enum LevelType"]
+        },
+        "ZoneBounds": {
+            "_length": 24,
+            "upper":                            "s32 @ 0x00",
+            "lower":                            "s32 @ 0x04",
+            "lakitu_upper":                     "s32 @ 0x08",
+            "lakitu_lower":                     "s32 @ 0x0c",
+            "id":                               "u16 @ 0x10",
+            "multiplayer_screen_height_adjust": "u16 @ 0x12",
+            "multiplayer_upper_adjust":         "u16 @ 0x14",
+            "multiplayer_upper_adjust":         "u16 @ 0x16"
+        },
+        "UnknownBlock3": {
+            "_length": 8
+        },
+        "BackgroundLayer": {
+            "_length": 24,
+            "id":            "u16 @ 0x00",
+            "x_scroll_rate": ["u16 @ 0x02", "enum BackgroundScrollRate"],
+            "y_scroll_rate": ["u16 @ 0x04", "enum BackgroundScrollRate"],
+            "x":             "u16 @ 0x06",
+            "y":             "u16 @ 0x08",
+            "file_id_1":     "u16 @ 0x0a",
+            "file_id_2":     "u16 @ 0x0c",
+            "file_id_3":     "u16 @ 0x0e",
+            "zoom":          ["u8 @ 0x13", "enum BackgroundZoom"]
+        },
+        "Entrance": {
+            "_length": 20,
+            "x":                     "u16 @ 0x00",
+            "y":                     "u16 @ 0x02",
+            "id":                    "u8 @ 0x08",
+            "destination_area":      "u8 @ 0x09",
+            "destination_id":        "u8 @ 0x0a",
+            "type":                  "u8 @ 0x0b",
+            "zone_id":               "u8 @ 0x0d",
+            "layer":                 "u8 @ 0x0e",
+            "direct_pipe_path_id":   "u8 @ 0x0f",
+            "flags":                 "u16 @ 0x10",
+            "is_direct_pipe_end":    ["u16 @ 0x10", "mask_bool 0x0001"],
+            "flags_unk_mask_2":      ["u16 @ 0x10", "mask_bool 0x0002"],
+            "is_forward_pipe":       ["u16 @ 0x10", "mask_bool 0x0004"],
+            "is_direct_pipe":        ["u16 @ 0x10", "mask_bool 0x0008"],
+            "non_enterable":         ["u16 @ 0x10", "mask_bool 0x0080"],
+            "direct_pipe_direction": "u8 @ 0x13"
+        },
+        "Sprite": {
+            "_length": 16,
+            "type":        "u16 @ 0x00",
+            "x":           "u16 @ 0x02",
+            "y":           "u16 @ 0x04",
+            "spritedata":  "bytestring 0x08 @ 0x06",
+            "events_data": "bytestring 0x02 @ 0x06",
+            "settings":    "bytestring 0x04 @ 0x08",
+            "zone_id":     "u8 @ 0x0c",
+            "layer":       "u8 @ 0x0d"
+        },
+        "UsedSpriteType": {
+            "_length": 4,
+            "value": "u16 @ 0x00"
+        },
+        "Zone": {
+            "_length": 24,
+            "x":                              "u16 @ 0x00",
+            "y":                              "u16 @ 0x02",
+            "width":                          "u16 @ 0x04",
+            "height":                         "u16 @ 0x06",
+            "theme":                          "u16 @ 0x08",
+            "lighting":                       "u16 @ 0x0a",
+            "id":                             "u8 @ 0x0c",
+            "bounds_id":                      "u8 @ 0x0d",
+            "camera_mode":                    "u8 @ 0x0e",
+            "camera_zoom":                    "u8 @ 0x0f",
+            "visibility":                     "u8 @ 0x11",
+            "bga_block_id":                   "u8 @ 0x12",
+            "bgb_block_id":                   "u8 @ 0x13",
+            "multiplayer_tracking":           "u8 @ 0x14",
+            "music":                          "u8 @ 0x16",
+            "sound_modulation":               ["u8 @ 0x17", ">> 4"],
+            "dont_begin_music_automatically": ["u8 @ 0x17", "& 0xf", "bool"]
+        },
+        "Location": {
+            "_length": 12,
+            "x":      "u16 @ 0x00",
+            "y":      "u16 @ 0x02",
+            "width":  "u16 @ 0x04",
+            "height": "u16 @ 0x06",
+            "id":     "u8 @ 0x08"
+        },
+        "CameraProfile": {
+            "_length": 20,
+            "bounds_id":           "u8 @ 0x0c",
+            "camera_mode":         "u8 @ 0x0d",
+            "camera_zoom":         "u8 @ 0x0e",
+            "zone_struct_byte_10": "u8 @ 0x0f",
+            "event_id":            "u8 @ 0x12"
+        },
+        "Path": {
+            "_length": 8,
+            "id":               "u8 @ 0x00",
+            "start_node_index": "u16 @ 0x02",
+            "num_nodes":        "u16 @ 0x04",
+            "is_looped":        ["u16 @ 0x06", "mask_bool 2"]
+        },
+        "PathNode": {
+            "_length": 16,
+            "x":            "u16 @ 0x00",
+            "y":            "u16 @ 0x02",
+            "speed":        "f32 @ 0x04",
+            "acceleration": "f32 @ 0x08",
+            "delay":        "u16 @ 0x0c"
+        },
+        "Object": {
+            "_length": 10,
+            "tileset_id": ["u16 @ 0x00", ">> 12"],
+            "type":       ["u16 @ 0x00", "& 0xfff"],
+            "x":          "u16 @ 0x02",
+            "y":          "u16 @ 0x04",
+            "width":      "u16 @ 0x06",
+            "height":     "u16 @ 0x08"
+        }
+    }
+}
