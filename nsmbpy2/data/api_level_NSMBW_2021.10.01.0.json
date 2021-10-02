@@ -45,6 +45,22 @@
             "ZOOM_125_0": {"struct_value": 1, "semantic_value": 125.0},
             "ZOOM_150_0": {"struct_value": 2, "semantic_value": 150.0},
             "ZOOM_200_0": {"struct_value": 3, "semantic_value": 200.0}
+        },
+        "ZoneLighting": {
+            "NORMAL": 0,
+            "UNDERGROUND": 1,
+            "UNDERWATER": 2,
+            "LAVA": 3
+        },
+        "CameraMode": {
+            "NORMAL": 0,
+            "Y_TRACKING_ONLY": 1,
+            "Y_EXPANDING_ONLY": 2,
+            "STATIC_ZOOM": 3,
+            "STATIC_ZOOM_Y_TRACKING_ONLY": 4,
+            "STATIC_ZOOM_EVENT_CONTROLLED": 5,
+            "X_TRACKING_ONLY": 6,
+            "X_EXPANDING_ONLY": 7
         }
     },
     "structs": {
@@ -138,10 +154,10 @@
             "width":                          "u16 @ 0x04",
             "height":                         "u16 @ 0x06",
             "theme":                          "u16 @ 0x08",
-            "lighting":                       "u16 @ 0x0a",
+            "lighting":                       ["u16 @ 0x0a", "enum ZoneLighting"],
             "id":                             "u8 @ 0x0c",
             "bounds_id":                      "u8 @ 0x0d",
-            "camera_mode":                    "u8 @ 0x0e",
+            "camera_mode":                    ["u8 @ 0x0e", "enum CameraMode"],
             "camera_zoom":                    "u8 @ 0x0f",
             "visibility":                     "u8 @ 0x11",
             "bga_block_id":                   "u8 @ 0x12",
@@ -162,7 +178,7 @@
         "CameraProfile": {
             "_length": 20,
             "bounds_id":           "u8 @ 0x0c",
-            "camera_mode":         "u8 @ 0x0d",
+            "camera_mode":         ["u8 @ 0x0d", "enum CameraMode"],
             "camera_zoom":         "u8 @ 0x0e",
             "zone_struct_byte_10": "u8 @ 0x0f",
             "event_id":            "u8 @ 0x12"
