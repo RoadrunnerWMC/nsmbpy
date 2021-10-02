@@ -14,35 +14,33 @@ APIVersion = str
 
 
 DATA_FOLDER = Path(__file__).parent / 'data'
-API_VERSIONS_WHITELIST_FP = DATA_FOLDER / 'api_versions_whitelist.txt'
 
 
-def load_api_versions_whitelist() -> List[str]:
+def load_api_versions_whitelist(name: str) -> List[str]:
     """
     Load the api_versions_whitelist.txt file
     """
     whitelist = []
-    with API_VERSIONS_WHITELIST_FP.open('r', encoding='utf-8') as f:
+    fp = DATA_FOLDER / f'api_{name}_versions_whitelist.txt'
+
+    with fp.open('r', encoding='utf-8') as f:
         for line in f:
             line = line.strip()
             if line:
                 whitelist.append(line)
+
     return whitelist
 
-api_versions_whitelist = load_api_versions_whitelist()
 
-
-def load_api_definition(name: APIVersion) -> dict:
+def load_api_definition(name: str, version: APIVersion) -> dict:
     """
     Load the JSON API definition file with the given name, and return
     its contents
     """
-    global api_versions_whitelist
+    if version not in load_api_versions_whitelist(name):
+        raise ValueError(f'Unrecognized API version: "{version}"')
 
-    if name not in api_versions_whitelist:
-        raise ValueError(f'Unrecognized API version: "{name}"')
-
-    fp = DATA_FOLDER / f'api_{name}.json'
+    fp = DATA_FOLDER / f'api_{name}_{version}.json'
     with fp.open('r', encoding='utf-8') as f:
         return json.load(f)
 
@@ -69,11 +67,19 @@ class VersionedAPI:
     Class representing an API (set of classes) instantiated from a JSON
     file indicated by a version string
     """
+    api_name: str
     api_definition: dict
     api_version: APIVersion
 
     enums: Dict[str, type]
     structs: Dict[str, type]
+
+    @classmethod
+    def _get_available_api_versions(cls) -> List[APIVersion]:
+        """
+        Get all available API version identifiers for this API
+        """
+        return load_api_versions_whitelist(cls.api_name)
 
     @classmethod
     def build(cls, api_version: APIVersion) -> 'VersionedAPI':
@@ -85,7 +91,7 @@ class VersionedAPI:
         self.enums = {}
         self.structs = {}
 
-        self.api_definition = load_api_definition(api_version)
+        self.api_definition = load_api_definition(self.api_name, api_version)
         self._process_api_definition(self.api_definition)
 
         return self

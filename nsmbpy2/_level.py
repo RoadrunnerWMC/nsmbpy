@@ -203,6 +203,7 @@ class Course:
     """
     _api: 'LevelAPI'
     blocks: List[List[base_struct.BaseStruct]]
+    block_names: List[str]
     metadata: bytes
 
     _block_name_to_index: Dict[str, int]
@@ -212,14 +213,21 @@ class Course:
         Create a new course
         """
         self.blocks = []
+        self.block_names = []
         self._block_name_to_index = {}
+
         for idx, block_def in enumerate(self._api.api_definition['course_blocks']):
             if block_def.get('single', False):
                 self.blocks.append(self._api.structs[block_def['struct']]())
             else:
                 self.blocks.append([])
+
             if 'name' in block_def:
-                self._block_name_to_index[block_def['name']] = idx
+                name = block_def['name']
+                self._block_name_to_index[name] = idx
+                self.block_names.append(name)
+            else:
+                self.block_names.append(None)
 
         self.metadata = b''
 
@@ -728,6 +736,8 @@ class LevelAPI(_abstract_json_versioned_api.VersionedAPI):
     Class representing the entire API -- a set of classes you can use to
     represent a level
     """
+    api_name: str = 'level'
+    api_version: str
     game: Game
 
     Level: type
@@ -735,7 +745,7 @@ class LevelAPI(_abstract_json_versioned_api.VersionedAPI):
     Course: type
 
     @classmethod
-    def build(cls, game: Game, api_version: str) -> 'LevelAPI':
+    def build(cls, game: Game, api_version: Optional[str]) -> 'LevelAPI':
         """
         Create a level API corresponding to a Game and a version string
         """
@@ -751,8 +761,23 @@ class LevelAPI(_abstract_json_versioned_api.VersionedAPI):
         if game is None:
             raise ValueError(f'Unsupported game: {game}')
 
-        self = super().build(f'{game_name}_{api_version}')
+        if api_version is None:
+            # Use the latest API version available for this game.
+            # Assumption: whitelist is sorted in least- to most-recent order
+            for available_version in reversed(cls._get_available_api_versions()):
+                if available_version.startswith(f'{game_name}_'):
+                    full_api_version = available_version
+                    break
+            else:
+                # um
+                raise RuntimeError(f'No level API versions found for {game_name}')
+
+        else:
+            full_api_version = f'{game_name}_{api_version}'
+
+        self = super().build(full_api_version)
         self.game = game
+        self.api_version = full_api_version[full_api_version.index('_')+1:]
 
         course_superclass, level_superclass = {
             'NSMB': (Course, Level),

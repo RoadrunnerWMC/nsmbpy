@@ -7,9 +7,11 @@ The API object you get depends on the API version string you request,
 for backward compatibility.
 """
 
+from typing import Optional
+
 from . import Game
 from ._level import LevelAPI
 
 
-def get(game: Game, api_version: str) -> LevelAPI:
+def get(game: Game, api_version: Optional[str]) -> LevelAPI:
     return LevelAPI.build(game, api_version)
