@@ -21,6 +21,9 @@ class StructField(Generic[FT]):
     def set(self, data: bytearray, value: FT) -> None:
         raise NotImplementedError
 
+    def empty_value(self) -> FT:
+        raise NotImplementedError
+
 
 class BytestringField(StructField[bytes]):
     """
@@ -39,6 +42,9 @@ class BytestringField(StructField[bytes]):
 
     def set(self, data: bytearray, value: bytes) -> None:
         data[self.offset : self.offset + self.length] = value
+
+    def empty_value(self) -> bytes:
+        return b'\0' * self.length
 
     def decode(self, encoding: str) -> 'StringField':
         """
@@ -65,6 +71,9 @@ class StringField(StructField[str]):
     def set(self, data: bytearray, value: str) -> None:
         self.parent.set(data, value.encode(self.encoding).ljust(self.parent.length, b'\0'))
 
+    def empty_value(self) -> str:
+        return ''
+
 
 
 class NumericField(StructField[FT]):
@@ -72,6 +81,7 @@ class NumericField(StructField[FT]):
     StructField subclass that deals with numeric types loaded by struct.unpack().
     """
     offset: int
+    type: type
 
     # Must be defined in subclasses
     endianness: Literal['<', '>']
@@ -89,11 +99,14 @@ class NumericField(StructField[FT]):
 
         endianness = EMPTY
         format_char = EMPTY
+        type_ = EMPTY
 
         if 'endianness' in kwargs:
             endianness = kwargs.pop('endianness')
         if 'format_char' in kwargs:
             format_char = kwargs.pop('format_char')
+        if 'type' in kwargs:
+            type_ = kwargs.pop('type')
 
         super().__init_subclass__(**kwargs)
 
@@ -101,6 +114,8 @@ class NumericField(StructField[FT]):
             cls.endianness = endianness
         if format_char is not EMPTY:
             cls.format_char = format_char
+        if type_ is not EMPTY:
+            cls.type = type_
 
     def format_string(self) -> str:
         """
@@ -132,6 +147,9 @@ class NumericField(StructField[FT]):
         except struct.error:
             raise ValueError(f'struct.pack_into({format_string!r}, {data!r}, {self.offset!r}, {value!r})')
 
+    def empty_value(self) -> FT:
+        return self.type(0)
+
 
 class IntegralNumericField(NumericField[int]):
     """
@@ -139,6 +157,7 @@ class IntegralNumericField(NumericField[int]):
     This adds various transformations, both with the transform() method
     and as a fluent interface.
     """
+    type = int
 
     def mask(self, bitmask: int) -> 'NumericFieldMask':
         """
@@ -280,6 +299,9 @@ class NumericFieldBool(StructField[bool]):
     def set(self, data: bytearray, value: bool, *, bitmask:int=-1) -> None:
         self.parent.set(data, (1 if value else 0), bitmask=bitmask)
 
+    def empty_value(self) -> bool:
+        return False
+
 
 ET = TypeVar('ET')  # "enum type"
 class NumericFieldEnum(StructField[ET]):
@@ -306,6 +328,12 @@ class NumericFieldEnum(StructField[ET]):
             self.parent.set(data, value, bitmask=bitmask)
         else:
             self.parent.set(data, value.value, bitmask=bitmask)
+
+    def empty_value(self) -> Union[ET, int]:
+        try:
+            return self.enum_type(0)
+        except ValueError:
+            return 0
 
 
 class BaseStruct:
