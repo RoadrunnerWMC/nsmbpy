@@ -1,4 +1,5 @@
 import codecs
+from typing import Any
 
 
 def short_bytes_repr(data: bytes, max_len=None):
@@ -169,3 +170,26 @@ def decode_null_terminated_string_from(
                     chars.append(char)
 
         return ''.join(chars)
+
+
+def handle_normal_setattr_stuff(self, super_, key: str, value: Any) -> bool:
+    """
+    Helper function for __setattr__ methods to check if the key is already
+    an attribute of the object, and if so, assign it normally.
+
+    "super_" is the return value of super() in __setattr__'s scope.
+
+    Returns True if it did that, or False if the key wasn't found and
+    should be handled with class-specific fallback mechanisms instead.
+    """
+    if key in self.__dict__:
+        super_.__setattr__(key, value)
+        return True
+
+    # This allows @properties to work correctly
+    # Yes, it looks a bit gross
+    elif hasattr(self.__class__, key) and hasattr(getattr(self.__class__, key), '__set__'):
+        getattr(self.__class__, key).__set__(self, value)
+        return True
+
+    return False

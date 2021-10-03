@@ -5,8 +5,9 @@ import struct
 from typing import Any, Callable, Dict, FrozenSet, List, Optional, Tuple, Union
 
 from . import Game
-from . import base_struct
 from . import _abstract_json_versioned_api
+from . import _common
+from . import base_struct
 from . import u8
 
 
@@ -239,10 +240,30 @@ class Course:
         - block names (e.g. self.sprites)
         - attributes on self.settings
         """
-        idx = self._block_name_to_index.get(name)
-        if idx is not None:
-            return self.blocks[idx]
-        return getattr(self.settings, name)
+        if '_block_name_to_index' in self.__dict__ and 'blocks' in self.__dict__:
+            idx = self._block_name_to_index.get(name)
+            if idx is not None:
+                return self.blocks[idx]
+
+        if name == 'settings':
+            raise AttributeError(name)
+        else:
+            return getattr(self.settings, name)
+
+
+    def __setattr__(self, key: str, value: Any) -> Any:
+        """
+        Assigns to the first of these with a matching key:
+        - attributes that exist on self: self
+        - attributes that exist on self.settings: self.settings
+        - everything else: self
+        """
+        if _common.handle_normal_setattr_stuff(self, super(), key, value):
+            pass
+        elif hasattr(self, 'settings') and hasattr(self.settings, key):
+            setattr(self.settings, key, value)
+        else:
+            super().__setattr__(key, value)
 
 
     @classmethod
@@ -560,13 +581,31 @@ class Area:
             self.bgdat_terminator = bgdat_terminator
 
 
-    def __getattr__(self, name: str) -> Any:
+    def __getattr__(self, name: int) -> Any:
         """
         Attribute resolution order:
         - (actual attributes)
         - attributes on self.course
         """
-        return getattr(self.course, name)
+        if name == 'course':
+            raise AttributeError(name)
+        else:
+            return getattr(self.course, name)
+
+
+    def __setattr__(self, key: str, value: Any) -> Any:
+        """
+        Assigns to the first of these with a matching key:
+        - attributes that exist on self: self
+        - attributes that exist on self.course: self.course
+        - everything else: self
+        """
+        if _common.handle_normal_setattr_stuff(self, super(), key, value):
+            pass
+        elif hasattr(self, 'course') and hasattr(self.course, key):
+            setattr(self.course, key, value)
+        else:
+            super().__setattr__(key, value)
 
 
     @classmethod

@@ -443,10 +443,7 @@ class BaseStruct:
             self.__dict__['raw_data'] = value
             return
 
-        # This allows @properties to work correctly
-        # Yes, it looks a bit gross
-        elif hasattr(self.__class__, key) and hasattr(getattr(self.__class__, key), '__set__'):
-            getattr(self.__class__, key).__set__(self, value)
+        if _common.handle_normal_setattr_stuff(self, super(), key, value):
             return
 
         try:
