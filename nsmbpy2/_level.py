@@ -209,6 +209,8 @@ class Course:
 
     _block_name_to_index: Dict[str, int]
 
+    _fallback_attribute_access_to_settings: bool = False
+
     def __init__(self):
         """
         Create a new course
@@ -232,6 +234,8 @@ class Course:
 
         self.metadata = b''
 
+        self._fallback_attribute_access_to_settings = True
+
 
     def __getattr__(self, name: int) -> Any:
         """
@@ -245,7 +249,7 @@ class Course:
             if idx is not None:
                 return self.blocks[idx]
 
-        if name == 'settings':
+        if name == 'settings' or not self._fallback_attribute_access_to_settings:
             raise AttributeError(name)
         else:
             return getattr(self.settings, name)
@@ -260,7 +264,7 @@ class Course:
         """
         if _common.handle_normal_setattr_stuff(self, super(), key, value):
             pass
-        elif hasattr(self, 'settings') and hasattr(self.settings, key):
+        elif self._fallback_attribute_access_to_settings and hasattr(self, 'settings') and hasattr(self.settings, key):
             setattr(self.settings, key, value)
         else:
             super().__setattr__(key, value)
@@ -571,6 +575,8 @@ class Area:
     layers: Dict[str, List['Object']]
     bgdat_terminator: bytes
 
+    _fallback_attribute_access_to_course: bool = False
+
     def __init__(self, course=None, layers=None, *, bgdat_terminator:bytes=None):
         self.course = course
         self.layers = layers if layers else {}
@@ -580,6 +586,8 @@ class Area:
         else:
             self.bgdat_terminator = bgdat_terminator
 
+        self._fallback_attribute_access_to_course = True
+
 
     def __getattr__(self, name: int) -> Any:
         """
@@ -587,7 +595,7 @@ class Area:
         - (actual attributes)
         - attributes on self.course
         """
-        if name == 'course':
+        if name == 'course' or not self._fallback_attribute_access_to_course:
             raise AttributeError(name)
         else:
             return getattr(self.course, name)
@@ -602,7 +610,7 @@ class Area:
         """
         if _common.handle_normal_setattr_stuff(self, super(), key, value):
             pass
-        elif hasattr(self, 'course') and hasattr(self.course, key):
+        elif self._fallback_attribute_access_to_course and hasattr(self, 'course') and hasattr(self.course, key):
             setattr(self.course, key, value)
         else:
             super().__setattr__(key, value)
