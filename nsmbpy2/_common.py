@@ -161,15 +161,11 @@ def decode_null_terminated_string_from(
 
         chars = []
 
-        full_break = False
         for chunk in codecs.iterdecode((bytes([b]) for b in slice), encoding, **kwargs):
             for char in chunk:
                 if char == '\0':
-                    full_break = True
-                    break
-                chars.append(char)
-
-            if full_break:
-                break
+                    return ''.join(chars)
+                else:
+                    chars.append(char)
 
         return ''.join(chars)
