@@ -59,7 +59,7 @@ def load(data: bytes) -> U8Folder:
         name_offs = int.from_bytes(data[offs + 1 : offs + 4], 'big')
         data_offs, size = struct.unpack_from('>II', data, offs + 4)
 
-        name = _common.load_null_terminated_string_from(data, string_table_offs + name_offs)
+        name = _common.decode_null_terminated_string_from(data, string_table_offs + name_offs)
 
         if type == 0:  # File
             file_data = data[data_offs : data_offs + size]

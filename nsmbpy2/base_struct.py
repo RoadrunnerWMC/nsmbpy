@@ -54,9 +54,10 @@ class BytestringField(StructField[bytes]):
         return StringField(self, encoding)
 
 
-class StringField(StructField[str]):
+class StringField(StructField[Union[str, bytes]]):
     """
-    Wrapper field type for casting a (null-padded, fixed-length) BytestringField to a str
+    Wrapper field type for casting a (null-padded, fixed-length) BytestringField to a str.
+    If decoding fails, returns the (null-rstripped) bytes instead.
     """
     parent: BytestringField
     encoding: str
@@ -65,11 +66,28 @@ class StringField(StructField[str]):
         self.parent = parent
         self.encoding = encoding
 
-    def get(self, data: bytes) -> str:
-        return self.parent.get(data).rstrip(b'\0').decode(self.encoding)
+    def get(self, data: bytes) -> Union[str, bytes]:
+        field_data = self.parent.get(data)
+        try:
+            return _common.decode_null_terminated_string_from(field_data, 0, self.encoding, fixed_length=self.parent.length)
+        except UnicodeDecodeError:
+            return field_data.rstrip(b'\0')
 
-    def set(self, data: bytearray, value: str) -> None:
-        self.parent.set(data, value.encode(self.encoding).ljust(self.parent.length, b'\0'))
+    def set(self, data: bytearray, value: Union[str, bytes], *, enforce_null_termination_on_bytes=True) -> None:
+        if isinstance(value, str):
+            value_bytes = (value + '\0').encode(self.encoding)
+        elif enforce_null_termination_on_bytes and b'\0' not in value:
+            value_bytes += b'\0'
+
+        if len(value_bytes) < self.parent.length:
+            value_bytes = value_bytes.ljust(self.parent.length, b'\0')
+
+        if len(value_bytes) > self.parent.length:
+            raise ValueError(
+                f"Unable to set string field to {value!r}, as encoded form {value_bytes!r} can't fit into {self.parent.length} bytes")
+
+        assert len(value_bytes) == self.parent.length
+        self.parent.set(data, value_bytes)
 
     def empty_value(self) -> str:
         return ''
