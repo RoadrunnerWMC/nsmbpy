@@ -8,7 +8,16 @@ from . import Game
 from . import _abstract_json_versioned_api
 from . import _common
 from . import base_struct
-from . import u8
+
+
+u8 = None
+def ensure_u8_imported():
+    """
+    Function for lazy-loading the u8 module
+    """
+    global u8
+    if u8 is None:
+        from . import u8
 
 
 PathLike = Union[str, 'pathlib.Path']
@@ -725,6 +734,8 @@ class NSMBWLevel(Level):
         """
         load() implementation for NSMBW U8 archives
         """
+        ensure_u8_imported()
+
         self = cls()
 
         if area_load_kwargs is None:
@@ -753,6 +764,7 @@ class NSMBWLevel(Level):
         """
         save() implementation for NSMBW U8 archives
         """
+        ensure_u8_imported()
 
         if area_save_kwargs is None:
             area_save_kwargs = {}
