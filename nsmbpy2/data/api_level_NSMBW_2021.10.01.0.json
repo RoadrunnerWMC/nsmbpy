@@ -251,6 +251,7 @@
             "flags_unk_mask_2":      ["u16 @ 0x10", "mask_bool 0x0002"],
             "is_forward_pipe":       ["u16 @ 0x10", "mask_bool 0x0004"],
             "is_direct_pipe":        ["u16 @ 0x10", "mask_bool 0x0008"],
+            "spawn_half_tile_left":  ["u16 @ 0x10", "mask_bool 0x0040"],
             "non_enterable":         ["u16 @ 0x10", "mask_bool 0x0080"],
             "direct_pipe_direction": ["u8 @ 0x13", "enum DirectPipeDirection"]
         },
