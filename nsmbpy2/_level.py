@@ -817,7 +817,7 @@ class LevelAPI(_abstract_json_versioned_api.VersionedAPI):
             Game.NEW_SUPER_LUIGI_U: 'NSMBU',
             Game.NEW_SUPER_MARIO_BROS_U_DELUXE: 'NSMBUDX',
         }.get(game)
-        if game is None:
+        if game_name is None:
             raise ValueError(f'Unsupported game: {game}')
 
         if api_version is None:
