@@ -808,6 +808,9 @@ class LevelAPI(_abstract_json_versioned_api.VersionedAPI):
         """
         Create a level API corresponding to a Game and a version string
         """
+        if not isinstance(game, Game):
+            raise ValueError(f'`game` argument must be a Game enum member (got "{game!r}" of type {type(game)})')
+
         game_name = {
             Game.NEW_SUPER_MARIO_BROS: 'NSMB',
             Game.NEW_SUPER_MARIO_BROS_WII: 'NSMBW',
