@@ -253,7 +253,7 @@
             "is_direct_pipe":                   ["u16 @ 0x10", "mask_bool 0x0008"],
             "spawn_half_tile_left":             ["u16 @ 0x10", "mask_bool 0x0040"],
             "non_enterable":                    ["u16 @ 0x10", "mask_bool 0x0080"],
-            "exit_level":                       ["u8 @ 0x12", "bool"],
+            "exit_to_world_map":                ["u8 @ 0x12", "bool"],
             "direct_pipe_other_side_direction": ["u8 @ 0x13", "enum DirectPipeOtherSideDirection"]
         },
         "Sprite": {
