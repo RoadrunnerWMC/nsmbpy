@@ -99,7 +99,7 @@ def create_field_from_json_spec(spec: object, *, enums:Dict[str, type]=None, def
     return field
 
 
-def create_struct_class(name: str, definition: Dict[str, Union[str, List[str]]], *,
+def create_struct_class(name: str, definition: Dict[str, Union[str, List[str], Dict]], *,
         mixins:List[type]=None, enums:Dict[str, type]=None, default_endianness:str=None) -> type:
     """
     Create a BaseStruct subclass from a json definition
@@ -110,7 +110,18 @@ def create_struct_class(name: str, definition: Dict[str, Union[str, List[str]]],
             # Names starting with _ are reserved
             continue
 
-        fields[key] = create_field_from_json_spec(value, enums=enums, default_endianness=default_endianness)
+        if isinstance(value, dict):
+            field_def = value['def']
+            field_config = value
+        else:
+            field_def = value
+            field_config = {}
+
+        field = create_field_from_json_spec(field_def, enums=enums, default_endianness=default_endianness)
+
+        field.is_alternate = field_config.get('alternate', False)
+
+        fields[key] = field
 
     return base_struct.create_basestruct_subclass(name, definition['_length'], fields, mixins=mixins)
 

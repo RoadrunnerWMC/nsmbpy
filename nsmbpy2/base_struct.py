@@ -14,6 +14,11 @@ class StructField(Generic[FT]):
     """
     Base class for a struct field
     """
+    # Set to True if this is an alternative way to access something more
+    # specifically described by other field(s). For example, an entire
+    # "flags" field is alternate if some of its bits are defined as
+    # other fields.
+    is_alternate: bool = False
 
     def get(self, data: bytes) -> FT:
         raise NotImplementedError
